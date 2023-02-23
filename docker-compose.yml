@@ -9,9 +9,18 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN_NAME:-localhost}`)"
+      - "traefik.http.routers.traefik.entrypoints=web"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+      - "traefik.http.routers.traefik.middlewares: traefik-auth"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users: ${TRAEFIK_USERNAME:-traefik}:${TRAEFIK_PASSWORD:-password}"
     ports:
       - "80:80"
       - "8080:8080"
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
 
@@ -24,11 +33,11 @@ services:
       - "portainer_data:/data"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.portainer.rule=Host(`portainer.localhost`)"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN_NAME:-localhost}`)"
       - "traefik.http.routers.portainer.entrypoints=web"
       - "traefik.http.services.portainer.loadbalancer.server.port=8000"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
-
+      
   cloudflared:
     container_name: cloudflared
     image: cloudflare/cloudflared:latest
