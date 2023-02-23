@@ -1,17 +1,34 @@
 version: '3'
 
 services:
-  portainer:
-    container_name: portainer
-    image: portainer/portainer-ce
-    command: -H unix:///var/run/docker.sock
-    restart: always
+  traefik:
+    image: "traefik:v2.9"
+    container_name: "traefik"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
     ports:
-      - 8000:8000
-      - 9000:9000
+      - "80:80"
+      - "8080:8080"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+  portainer:
+    image: "portainer/portainer-ce:latest"
+    container_name: portainer
+    restart: unless-stopped
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "portainer_data:/data"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.localhost`)"
+      - "traefik.http.routers.portainer.entrypoints=web"
+      - "traefik.http.services.portainer.loadbalancer.server.port=8000"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+
   cloudflared:
     container_name: cloudflared
     image: cloudflare/cloudflared:latest
