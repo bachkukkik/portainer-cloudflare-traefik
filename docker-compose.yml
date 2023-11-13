@@ -2,38 +2,27 @@ version: '3'
 
 services:
   traefik:
-    image: "traefik:latest"
-    container_name: "traefik"
+    image: traefik:latest
+    container_name: portainer-traefik
     command:
+      - "--log.level=DEBUG"
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN_NAME:-localhost}`)"
-      - "traefik.http.routers.traefik.entrypoints=web"
-      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
-      - "traefik.http.routers.traefik.middlewares: traefik-auth"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users: ${TRAEFIK_USERNAME:-traefik}:${TRAEFIK_PASSWORD:-password}"
-    ports:
-      - "80:80"
-      - "8080:8080"
-    security_opt:
-      - no-new-privileges:true
+    restart: unless-stopped
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
 
   portainer:
     image: "portainer/portainer-ce:latest"
-    container_name: portainer
     restart: unless-stopped
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "portainer_data:/data"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN_NAME:-localhost}`)"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.localhost`)"
       - "traefik.http.routers.portainer.entrypoints=web"
       - "traefik.http.services.portainer.loadbalancer.server.port=8000"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
@@ -46,3 +35,8 @@ services:
 
 volumes:
   portainer_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VOLUME_REDIS:-/home/pi/docker_volumes/portainer_data}
