@@ -1,9 +1,6 @@
-version: '3'
-
 services:
   traefik:
     image: traefik:latest
-    container_name: traefik
     command:
       - "--log.level=DEBUG"
       - "--api.insecure=true"
@@ -24,16 +21,19 @@ services:
       timeout: 5s
       retries: 3
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
+    # ports:
+    #   - "80:80"
+    #   - "443:443"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./letsencrypt:/letsencrypt"
+    networks:
+      default:
+        aliases:
+          - traefik
 
   portainer:
     image: "portainer/portainer-ce:latest"
-    container_name: portainer
     restart: unless-stopped
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
@@ -45,12 +45,10 @@ services:
       - "traefik.http.routers.portainer.tls=true" # Enable TLS/SSL
       - "traefik.http.routers.portainer.tls.certresolver=myresolver" # Use the certificate resolver configured for Let's Encrypt
       - "traefik.http.services.portainer.loadbalancer.server.port=9000" # Ensure this is the correct port
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9000/ || exit 1"]
-      interval: 1m
-      timeout: 10s
-      retries: 3
-      start_period: 5s
+    networks:
+      default:
+        aliases:
+          - portainer_data
       
   cloudflared_kk:
     container_name: cloudflared_kk
@@ -64,10 +62,25 @@ services:
     command: "tunnel --no-autoupdate run --token ${CLOUDFLARE_UXIBLE_TOKEN}"
     restart: unless-stopped
 
+  autoheal:
+    deploy:
+      replicas: 3
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal-app
+    image: willfarrell/autoheal:latest
+    network_mode: none
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
 volumes:
   portainer_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${VOLUME_DOCKER:-/home/pi/docker_volumes}/portainer_data
+      device: ${VOLUME_DOCKER:-/home/pi/docker_volumes}/portainer_data=
+
+networks:
+  default:
